@@ -33,6 +33,9 @@ import time
 from configurations import containsFlag
 from db import DB
 
+
+MAX_SIZE = 8*1024*1024
+
 end_states = (nids.NIDS_CLOSE, nids.NIDS_TIMEOUT, nids.NIDS_RESET)
 db = DB()
 
@@ -92,6 +95,10 @@ def handleTcpStream(tcp):
 
         ts = int(float(nids.get_pkt_ts()) * 1000)
 
+        current_data = data_flow[tcp.addr]
+        if len(current_data) > MAX_SIZE: # check if each flow is less than 16 MB (mongodb document limit)
+            current_data = current_data[:MAX_SIZE] + "<truncated>"
+
         flow = {"inx": inx,
                 "filename": filename,
                 "src_ip": src,
@@ -102,12 +109,11 @@ def handleTcpStream(tcp):
                 "duration": (ts - start_time[tcp.addr]),
                 "contains_flag": contains_flag[tcp.addr],
                 "starred": 0,
-                "flow": data_flow[tcp.addr]
+                "flow": current_data
                 }
 
         flows_to_import.append(flow)
         del data_flow[tcp.addr]
-        #TODO check if each flow is less than 16 MB (mongodb document limit)
 
 
 nids.param("pcap_filter", "tcp")  # restrict to TCP only
